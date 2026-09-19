@@ -4,7 +4,8 @@
       <div class="brand"><span class="brand-mark">W</span><span>微信运营台</span></div>
       <nav>
         <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-item">
-          <component :is="item.icon" /><span>{{ item.label }}</span>
+          <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
         </RouterLink>
       </nav>
     </aside>
@@ -55,7 +56,9 @@ async function handleCommand(command) {
 .brand { height: 52px; display: flex; align-items: center; gap: 10px; color: white; font-size: 17px; font-weight: 650; padding: 0 10px 18px; border-bottom: 1px solid #28344b; }
 .brand-mark { display:grid; place-items:center; width:28px; height:28px; background:#16a36a; border-radius:6px; }
 nav { padding-top: 18px; display: grid; gap: 4px; }
-.nav-item { height: 42px; display:flex; align-items:center; gap:12px; padding:0 12px; border-radius:6px; font-size:14px; }
+.nav-item { height: 42px; display:flex; align-items:center; gap:12px; padding:0 12px; border-radius:6px; font-size:14px; line-height:20px; }
+.nav-icon { width:18px; height:18px; flex:0 0 18px; font-size:18px; }
+.nav-item > span { min-width:0; white-space:nowrap; }
 .nav-item:hover, .nav-item.router-link-exact-active { color:#fff; background:#243047; }
 main { min-width: 0; }
 .topbar { height: 68px; display:flex; justify-content:space-between; align-items:center; padding:0 28px; background:#fff; border-bottom:1px solid #e8ecf3; }
