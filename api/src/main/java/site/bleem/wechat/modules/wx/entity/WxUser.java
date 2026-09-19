@@ -30,9 +30,10 @@ public class WxUser implements Serializable {
     private String appid;
     private String phone;
     private String nickname;
-    private int sex;
+    private Integer sex;
     private String city;
     private String province;
+    private String country;
     private String headimgurl;
     @JSONField(name = "subscribe_time")
     private Date subscribeTime;
@@ -70,12 +71,14 @@ public class WxUser implements Serializable {
     public WxUser(WxOAuth2UserInfo wxMpUser, String appid) {
         this.openid = wxMpUser.getOpenid();
         this.appid = appid;
-		this.subscribe=wxMpUser.getNickname()!=null;
-		if(this.subscribe){
-			this.nickname = wxMpUser.getNickname();
-			this.headimgurl = wxMpUser.getHeadImgUrl();
-			this.unionid=wxMpUser.getUnionId();
-		}
+        this.nickname = wxMpUser.getNickname();
+        this.sex = wxMpUser.getSex();
+        this.city = wxMpUser.getCity();
+        this.province = wxMpUser.getProvince();
+        this.country = wxMpUser.getCountry();
+        this.headimgurl = wxMpUser.getHeadImgUrl();
+        this.unionid = wxMpUser.getUnionId();
+        this.subscribe = true;
     }
 
     @Override

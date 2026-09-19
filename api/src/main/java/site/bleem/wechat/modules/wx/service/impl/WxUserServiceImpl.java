@@ -1,6 +1,7 @@
 package site.bleem.wechat.modules.wx.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import site.bleem.wechat.common.utils.Query;
@@ -16,11 +17,13 @@ import me.chanjar.weixin.mp.bean.result.WxMpUserList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,11 +35,14 @@ import java.util.stream.Collectors;
 @Service
 public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> implements WxUserService {
     Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final String SYNC_LOCK_KEY = "wx:user:sync:lock";
+
     @Autowired
     private WxUserMapper userMapper;
 	@Autowired
 	private WxMpService wxMpService;
-    private volatile static  boolean syncWxUserTaskRunning=false;
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public IPage<WxUser> queryPage(Map<String, Object> params) {
@@ -106,10 +112,28 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
      */
     @Override
     public void updateOrInsert(WxUser user) {
-        int updateCount = userMapper.updateById(user);
-        if (updateCount < 1) {
+        boolean exists = this.count(new QueryWrapper<WxUser>().eq("openid", user.getOpenid())) > 0;
+        if (!exists) {
             userMapper.insert(user);
+            return;
         }
+        UpdateWrapper<WxUser> update = new UpdateWrapper<WxUser>().eq("openid", user.getOpenid());
+        if (StringUtils.hasText(user.getAppid())) update.set("appid", user.getAppid());
+        if (StringUtils.hasText(user.getNickname())) update.set("nickname", user.getNickname());
+        if (user.getSex() != null) update.set("sex", user.getSex());
+        if (StringUtils.hasText(user.getCity())) update.set("city", user.getCity());
+        if (StringUtils.hasText(user.getProvince())) update.set("province", user.getProvince());
+        if (StringUtils.hasText(user.getCountry())) update.set("country", user.getCountry());
+        if (StringUtils.hasText(user.getHeadimgurl())) update.set("headimgurl", user.getHeadimgurl());
+        if (StringUtils.hasText(user.getUnionid())) update.set("unionid", user.getUnionid());
+        if (StringUtils.hasText(user.getRemark())) update.set("remark", user.getRemark());
+        if (StringUtils.hasText(user.getSubscribeScene())) update.set("subscribe_scene", user.getSubscribeScene());
+        if (StringUtils.hasText(user.getQrSceneStr())) update.set("qr_scene_str", user.getQrSceneStr());
+        if (user.getSubscribeTime() != null) update.set("subscribe_time", user.getSubscribeTime());
+        if (user.getTagidList() != null) update.set("tagid_list", user.getTagidList());
+        update.set("subscribe", user.isSubscribe());
+        if (StringUtils.hasText(user.getPhone())) update.set("phone", user.getPhone());
+        this.update(update);
     }
 
     @Override
@@ -123,16 +147,15 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     @Override
 	@Async
     public void syncWxUsers(String appid) {
-		//同步较慢，防止个多线程重复执行同步任务
-		Assert.isTrue(!syncWxUserTaskRunning,"后台有同步任务正在进行中，请稍后重试");
-		wxMpService.switchoverTo(appid);
-		syncWxUserTaskRunning=true;
-		logger.info("同步公众号粉丝列表：任务开始");
-		wxMpService.switchover(appid);
-		boolean hasMore=true;
-		String nextOpenid=null;
-		WxMpUserService wxMpUserService = wxMpService.getUserService();
+		// 同步较慢，用 Redis SET NX 防止多实例/多线程重复执行
+		Boolean acquired = redisTemplate.opsForValue().setIfAbsent(SYNC_LOCK_KEY, appid, Duration.ofHours(1));
+		Assert.isTrue(Boolean.TRUE.equals(acquired), "后台有同步任务正在进行中，请稍后重试");
 		try {
+			wxMpService.switchoverTo(appid);
+			logger.info("同步公众号粉丝列表：任务开始");
+			boolean hasMore=true;
+			String nextOpenid=null;
+			WxMpUserService wxMpUserService = wxMpService.getUserService();
 			int page=1;
 			while (hasMore){
 				WxMpUserList wxMpUserList = wxMpUserService.userList(nextOpenid);//拉取openid列表，每次最多1万个
@@ -142,12 +165,12 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 				nextOpenid=wxMpUserList.getNextOpenid();
 				hasMore=StringUtils.hasText(nextOpenid) && wxMpUserList.getCount()>=10000;
 			}
+			logger.info("同步公众号粉丝列表：完成");
 		} catch (WxErrorException e) {
 			logger.error("同步公众号粉丝出错:",e);
-		}finally {
-			syncWxUserTaskRunning=false;
+		} finally {
+			redisTemplate.delete(SYNC_LOCK_KEY);
 		}
-		logger.info("同步公众号粉丝列表：完成");
 	}
 
 	/**

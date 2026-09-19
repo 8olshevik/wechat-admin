@@ -4,6 +4,7 @@ import site.bleem.wechat.common.utils.*;
 import site.bleem.wechat.modules.sys.service.SysLogService;
 import site.bleem.wechat.modules.wx.entity.WxUser;
 import site.bleem.wechat.modules.wx.form.WxH5OuthrizeForm;
+import site.bleem.wechat.modules.wx.service.WxUserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class WxAuthController {
     @Autowired
     SysLogService sysLogService;
     private final WxMpService wxMpService;
+    private final WxUserService wxUserService;
 
     /**
      * 使用微信授权code换取openid
@@ -85,7 +87,9 @@ public class WxAuthController {
             CookieUtil.setCookie(response, "openid", openid, 365 * 24 * 60 * 60);
             String openidToken = MD5Util.getMd5AndSalt(openid);
             CookieUtil.setCookie(response, "openidToken", openidToken, 365 * 24 * 60 * 60);
-            return R.ok().put(new WxUser(userInfo,appid));
+            WxUser wxUser = new WxUser(userInfo, appid);
+            wxUserService.updateOrInsert(wxUser);
+            return R.ok().put(wxUser);
         } catch (WxErrorException e) {
             logger.error("code换取用户信息失败", e);
             return R.error(e.getError().getErrorMsg());
