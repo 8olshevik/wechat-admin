@@ -1,0 +1,18 @@
+[Unit]
+Description=Bleem WeChat Admin API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/wechat-admin
+EnvironmentFile=/etc/wechat-admin/wechat-admin.env
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/wechat-admin/current-api.jar
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

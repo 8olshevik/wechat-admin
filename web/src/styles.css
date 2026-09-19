@@ -1,0 +1,17 @@
+:root {
+  color: #172033;
+  background: #f5f7fb;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1180px; }
+a { color: inherit; text-decoration: none; }
+.page { padding: 24px 28px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.page-title { margin: 0; font-size: 22px; font-weight: 650; }
+.page-subtitle { color: #73809a; font-size: 13px; margin-top: 6px; }
+.toolbar { display: flex; align-items: center; gap: 10px; }
+.surface { background: #fff; border: 1px solid #e8ecf3; border-radius: 8px; }
+.table-surface { padding: 16px; }
+.muted { color: #8590a8; }

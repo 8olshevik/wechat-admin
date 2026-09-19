@@ -1,9 +1,17 @@
+server:
+    address: ${SERVER_ADDRESS:127.0.0.1}
+
 spring:
     datasource:
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://localhost:3306/wx?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-        username: root
-        password: 123456
+        url: jdbc:mysql://${MYSQL_IP:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:wx}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false
+        username: ${MYSQL_USERNAME}
+        password: ${MYSQL_PASSWORD}
+    redis:
+        host: ${REDIS_IP:127.0.0.1}
+        port: ${REDIS_PORT:6379}
+        database: ${REDIS_DATABASE:1}
+        password: ${REDIS_PASSWORD:}
 
 springfox:
     documentation:

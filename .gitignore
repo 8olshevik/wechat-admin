@@ -24,3 +24,6 @@ hs_err_pid*
 replay_pid*
 
 api/target/
+web/node_modules/
+web/dist/
+api/deploy/wechat-admin.env

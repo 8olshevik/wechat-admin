@@ -1,0 +1,120 @@
+name: Build and Deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: wechat-admin-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web console
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: maven
+
+      - name: Build API JAR
+        working-directory: api
+        run: mvn -q -DskipTests package
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-jar
+          path: api/target/wx-api.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: release/web
+
+      - name: Download API artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-jar
+          path: release/api
+
+      - name: Configure deployment SSH key
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release files
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          RELEASE_ID: ${{ github.sha }}
+        run: |
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "mkdir -p '$DEPLOY_PATH/releases/$RELEASE_ID/api' '$DEPLOY_PATH/releases/$RELEASE_ID/web'"
+          rsync -az --delete -e "ssh -p $DEPLOY_PORT" \
+            release/web/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$RELEASE_ID/web/"
+          rsync -az -e "ssh -p $DEPLOY_PORT" \
+            release/api/wx-api.jar "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$RELEASE_ID/api/wx-api.jar"
+
+      - name: Activate release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          RELEASE_ID: ${{ github.sha }}
+        run: |
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -eu
+            ln -sfn '$DEPLOY_PATH/releases/$RELEASE_ID/web' '$DEPLOY_PATH/current-web'
+            ln -sfn '$DEPLOY_PATH/releases/$RELEASE_ID/api/wx-api.jar' '$DEPLOY_PATH/current-api.jar'
+            systemctl restart wechat-admin
+            systemctl is-active --quiet wechat-admin"

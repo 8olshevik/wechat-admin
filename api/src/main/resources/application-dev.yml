@@ -7,7 +7,7 @@ spring:
     redis:
         host: ${REDIS_IP:localhost}
         database: ${REDIS_DATABASE:1}
-        port: ${REDIS_PORT:3306}
+        port: ${REDIS_PORT:6379}
         password: ${REDIS_PASSWORD:''}
 
 springfox:
