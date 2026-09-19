@@ -10,13 +10,15 @@ Configure these once on the production server:
 
 ```text
 /opt/wechat-admin/
-  releases/
-  current-web -> releases/<commit>/web
-  current-api.jar -> releases/<commit>/api/wx-api.jar
+  web/
+  wechat-admin.jar
+  web.previous/
+  wechat-admin.previous.jar
+  .deploy/
 ```
 
-The systemd unit must execute `/opt/wechat-admin/current-api.jar`. Nginx should serve
-`/opt/wechat-admin/current-web` and proxy `/wx/` to the API service's loopback port.
+Nginx should always serve `/opt/wechat-admin/web` and proxy `/wx/` to the API service's
+loopback port. The systemd unit executes `/opt/wechat-admin/wechat-admin.jar`.
 
 Install `api/deploy/wechat-admin.service` at `/etc/systemd/system/wechat-admin.service`.
 Create `/etc/wechat-admin/wechat-admin.env` from
@@ -24,7 +26,7 @@ Create `/etc/wechat-admin/wechat-admin.env` from
 settings, then run:
 
 ```text
-mkdir -p /opt/wechat-admin/releases /etc/wechat-admin
+mkdir -p /opt/wechat-admin/.deploy /etc/wechat-admin
 chown -R www-data:www-data /opt/wechat-admin
 systemctl daemon-reload
 systemctl enable wechat-admin
@@ -57,9 +59,15 @@ The public half of `DEPLOY_SSH_PRIVATE_KEY` must be added to the deployment user
 
 ## Release behavior
 
-Each deployed commit is uploaded into `releases/<commit-sha>`. The frontend and API are
-activated independently by symlink, so rolling back is a symlink switch followed by:
+Each deployed commit is uploaded into `/opt/wechat-admin/.deploy/<commit-sha>` first.
+After the complete upload is verified, the workflow replaces the stable `/opt/wechat-admin/web`
+directory and `/opt/wechat-admin/wechat-admin.jar` file. The immediately previous frontend and
+JAR are retained for rollback:
 
 ```text
-systemctl restart wechat-admin
+/opt/wechat-admin/web.previous
+/opt/wechat-admin/wechat-admin.previous.jar
 ```
+
+To roll back, replace the stable paths with their `.previous` copies, then restart
+`wechat-admin`.

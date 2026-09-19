@@ -98,11 +98,11 @@ jobs:
           RELEASE_ID: ${{ github.sha }}
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "mkdir -p '$DEPLOY_PATH/releases/$RELEASE_ID/api' '$DEPLOY_PATH/releases/$RELEASE_ID/web'"
+            "mkdir -p '$DEPLOY_PATH/.deploy/$RELEASE_ID/api' '$DEPLOY_PATH/.deploy/$RELEASE_ID/web'"
           rsync -az --delete -e "ssh -p $DEPLOY_PORT" \
-            release/web/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$RELEASE_ID/web/"
+            release/web/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.deploy/$RELEASE_ID/web/"
           rsync -az -e "ssh -p $DEPLOY_PORT" \
-            release/api/wx-api.jar "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$RELEASE_ID/api/wx-api.jar"
+            release/api/wx-api.jar "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.deploy/$RELEASE_ID/api/wx-api.jar"
 
       - name: Activate release
         env:
@@ -114,7 +114,14 @@ jobs:
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu
-            ln -sfn '$DEPLOY_PATH/releases/$RELEASE_ID/web' '$DEPLOY_PATH/current-web'
-            ln -sfn '$DEPLOY_PATH/releases/$RELEASE_ID/api/wx-api.jar' '$DEPLOY_PATH/current-api.jar'
+            test -s '$DEPLOY_PATH/.deploy/$RELEASE_ID/api/wx-api.jar'
+            test -f '$DEPLOY_PATH/.deploy/$RELEASE_ID/web/index.html'
+            rm -rf '$DEPLOY_PATH/web.previous'
+            test ! -e '$DEPLOY_PATH/web' || mv '$DEPLOY_PATH/web' '$DEPLOY_PATH/web.previous'
+            mv '$DEPLOY_PATH/.deploy/$RELEASE_ID/web' '$DEPLOY_PATH/web'
+            test ! -e '$DEPLOY_PATH/wechat-admin.previous.jar' || rm -f '$DEPLOY_PATH/wechat-admin.previous.jar'
+            test ! -e '$DEPLOY_PATH/wechat-admin.jar' || mv '$DEPLOY_PATH/wechat-admin.jar' '$DEPLOY_PATH/wechat-admin.previous.jar'
+            mv '$DEPLOY_PATH/.deploy/$RELEASE_ID/api/wx-api.jar' '$DEPLOY_PATH/wechat-admin.jar'
             systemctl restart wechat-admin
-            systemctl is-active --quiet wechat-admin"
+            systemctl is-active --quiet wechat-admin
+            rm -rf '$DEPLOY_PATH/.deploy/$RELEASE_ID'"
