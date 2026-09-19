@@ -8,8 +8,10 @@ import site.bleem.wechat.common.utils.R;
 import site.bleem.wechat.modules.sys.controller.AbstractController;
 import site.bleem.wechat.modules.wx.entity.WxAccount;
 import site.bleem.wechat.modules.wx.service.WxAccountAccessService;
+import site.bleem.wechat.modules.wx.dto.WxAccountConfigView;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/manage/console")
@@ -23,7 +25,9 @@ public class WxConsoleController extends AbstractController {
     @GetMapping("/accounts")
     public R accounts() {
         List<WxAccount> accounts = wxAccountAccessService.getAccessibleAccounts(getUserId());
-        return R.ok().put("list", accounts);
+        return R.ok().put("list", accounts.stream()
+            .map(WxAccountConfigView::from)
+            .collect(Collectors.toList()));
     }
 
     @GetMapping("/context")
