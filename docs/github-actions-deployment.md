@@ -15,6 +15,7 @@ Configure these once on the production server:
   web.previous/
   wechat-admin.previous.jar
   .deploy/
+  logs/
 ```
 
 Nginx should always serve `/opt/wechat-admin/web` and proxy `/wx/` to the API service's
@@ -27,10 +28,12 @@ settings, then run:
 
 ```text
 mkdir -p /opt/wechat-admin/.deploy /etc/wechat-admin
-chown -R www-data:www-data /opt/wechat-admin
 systemctl daemon-reload
 systemctl enable wechat-admin
 ```
+
+The systemd unit creates `/opt/wechat-admin/logs` with the required `www-data` ownership
+before each application start.
 
 The deployment account must be able to write `/opt/wechat-admin` and restart only this service:
 

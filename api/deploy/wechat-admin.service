@@ -8,6 +8,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/wechat-admin
 EnvironmentFile=/etc/wechat-admin/wechat-admin.env
+ExecStartPre=+/usr/bin/install -d -o www-data -g www-data -m 0755 /opt/wechat-admin/logs
 ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/wechat-admin/wechat-admin.jar
 Restart=on-failure
 RestartSec=5
