@@ -16,6 +16,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(wxAccountAccessInterceptor)
             .addPathPatterns("/manage/**")
-            .excludePathPatterns("/manage/wxAccount/**", "/manage/console/accounts");
+            .excludePathPatterns(
+                "/manage/wxAccount/**",
+                "/manage/console/accounts",
+                "/manage/console/account-config/**"
+            );
     }
 }
